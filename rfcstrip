@@ -70,7 +70,7 @@ do_version () {
 }
 
 do_usage () {
-    echo "Usage: rfcstrip [-Vhnac] [-i dir] [-d dir] [-f file]" \
+    echo "Usage: rfcstrip [-Vhnacv] [-i dir] [-d dir] [-f file]" \
          "file1 [file2 [...]]"
     echo "-V         show version"
     echo "-h         show usage information"
@@ -78,6 +78,7 @@ do_usage () {
     echo "-a         extract artwork from XML files"
     echo "-c         only extract files marked CODE BEGINS from txt files"
     echo "           leading and trailing blank lines are removed"
+    echo "-v         use YANG Semver in YANG modules instead of revision date"
     echo "-i dir     try to read files from directory dir"
     echo "-d dir     write file to directory dir"
     echo "-f file    strip only the specified file"
@@ -119,7 +120,7 @@ do_strip_txt() {
     $CMD "$FILE" | \
     tr -d '\015' | \
     $AWK -vtest="$test" -vcodemarker="$codemarker" \
-         -vdir="$dir" -vsingle="$single" '
+         -vdir="$dir" -vsingle="$single" -vyang_semver="$yang_semver" '
 
     BEGIN {
         type = 0
@@ -132,10 +133,18 @@ do_strip_txt() {
         # extract the filename
         match($0, "\"(.*)\"")
         file = substr($0, RSTART+1, RLENGTH-2)
+        if (file ~ /[.]yang/) {
+            is_yang = 1
+        } else {
+            is_yang = 0
+        }
         preskip = 3
         skip = 5
         skipped = -1
         n = 0
+        version = ""
+        first_revision = -1
+        revision_indent = -1
         type = 1
         delete line
 
@@ -154,10 +163,18 @@ do_strip_txt() {
         # extract the filename
         match($0, "\"(.*)\"")
         file = substr($0, RSTART+1, RLENGTH-2)
+        if (file ~ /[.]yang/) {
+            is_yang = 1
+        } else {
+            is_yang = 0
+        }
         preskip = 3
         skip = 5
         skipped = -1
         n = 0
+        version = ""
+        first_revision = -1
+        revision_indent = -1
         type = 1
         delete line
 
@@ -186,6 +203,9 @@ do_strip_txt() {
         preskip = 3
         skip = 4
         skipped = -1
+        first_revision = -1
+        revision_indent = -1
+        version = ""
         n = 0
         type = 3
         delete line
@@ -239,6 +259,13 @@ do_strip_txt() {
         macro = 1
     }
 
+    # identify the first revision in a YANG module
+    (type == 3 || (type == 1 && is_yang == 1)) &&
+    first_revision == -1 && /^[ \t]*revision[ \t]+[0-9-]+[ \t]*{?/ {
+        first_revision = 0
+        revision_indent = match($0, "[^ \t]")
+    }
+
     # generic end marker
     type == 1 && /^[ \t]*<CODE ENDS>.*$/ {
         if ((length(single) == 0) || (single == file)) {
@@ -253,6 +280,16 @@ do_strip_txt() {
                     if ((p < strip) && (length(line[i]) >= p)) { strip = p }
                 }
             }
+            if (yang_semver == "1" && version != "") {
+                if (file ~ /@/) {
+                    match(file, ".+@")
+                    file = substr(file, RSTART, RLENGTH-1)"#"version".yang"
+                } else {
+                    match(file, "[.]yang")
+                    file = substr(file, 1, RSTART-1)"#"version".yang"
+                }
+            }
+
             if (dir) {
                 f = dir"/"file
             } else {
@@ -286,6 +323,9 @@ do_strip_txt() {
         file = ""
         type = 0
         gen_marker_header = 0
+        version = ""
+        first_revision = -1
+        revision_indent = -1
     }
 
     # end of SMI module
@@ -323,6 +363,22 @@ do_strip_txt() {
         }
     }
 
+    # find a xxx:version in a YANG module revision
+    (type == 3 || (type == 1 && is_yang == 1)) &&
+    first_revision == 0 &&
+    /^[ \t]*[a-zA-Z]+:version[ \t]+"?([0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?)/ {
+	match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?")
+        version = substr($0, RSTART, RLENGTH)
+        first_revision = 1
+    }
+
+    (type == 3 || (type == 1 && is_yang == 1)) && first_revision == 0 && /^[ \t]*}.*$/ {
+        indent = match($0, "[^ \t]")
+        if (indent == revision_indent) {
+            first_revision = 1
+        }
+    }
+
     # end of YANG module
     type == 3 && /^[ \t]*}.*$/ {
         indent = match($0, "[^ \t]")
@@ -342,6 +398,10 @@ do_strip_txt() {
                     }
                 }
 
+                if (yang_semver == "1" && version != "") {
+                    file = module"#"version".yang"
+                }
+
                 if (dir) {
                    f = dir"/"file
                 } else {
@@ -358,6 +418,9 @@ do_strip_txt() {
             module = ""
             file = ""
             type = 0
+            version = ""
+            first_revision = -1
+	    revision_indent = -1
         }
     }
 
@@ -435,8 +498,8 @@ EOF
             outfile=$name
         fi
         $CMD "$FILE" | \
-        $XSLTPROC --stringparam FILE $outfile $XSLFILE2 - 2> /dev/null |
-        $AWK -vf="$outfile" -vtest="$test" '
+        $XSLTPROC --stringparam FILE $name $XSLFILE2 - 2> /dev/null |
+        $AWK -vf="$outfile" -vtest="$test" -vyang_semver="$yang_semver" '
 
         BEGIN {
             n = 0
@@ -446,6 +509,12 @@ EOF
             gen_marker_header = 0
             unfold = 0
             prev_backslash = 0
+            is_yang = 0
+            module_name = ""
+            version = ""
+            first_revision = -1
+            revision_indent = -1
+            modindent = -1
         }
 
         # remove blank lines at the top
@@ -486,6 +555,43 @@ EOF
         }
         x == 0 {
             x = 1
+            # detect YANG module and extract module name
+            if (f ~ /[.]yang$/) {
+                is_yang = 1
+            }
+        }
+        
+        # detect YANG module start for semver extraction
+        is_yang == 1 && x == 1 && 
+        /^[ \t]*(sub)?module +([A-Za-z0-9-]*) *{ *$/ {
+            module_name = $2
+            modindent = match($0, "[^ \t]")
+            first_revision = -1
+            revision_indent = -1
+            version = ""
+        }
+        
+        # identify the first revision in a YANG module
+        is_yang == 1 && first_revision == -1 && 
+        /^[ \t]*revision[ \t]+[0-9-]+[ \t]*{?/ {
+            first_revision = 0
+            revision_indent = match($0, "[^ \t]")
+        }
+        
+        # find a xxx:version in a YANG module revision
+        is_yang == 1 && first_revision == 0 &&
+        /^[ \t]*[a-zA-Z]+:version[ \t]+"?([0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?)/ {
+            match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?")
+            version = substr($0, RSTART, RLENGTH)
+            first_revision = 1
+        }
+        
+        # end of first revision block
+        is_yang == 1 && first_revision == 0 && /^[ \t]*}.*$/ {
+            indent = match($0, "[^ \t]")
+            if (indent == revision_indent) {
+                first_revision = 1
+            }
         }
         unfold == 1 && prev_backslash == 1 && /^[ \t]+/ {
             sub("^[ \\t]+", "")
@@ -543,13 +649,29 @@ EOF
             }
         }
         END {
-            print f ": " n " lines."
+            # modify filename for YANG modules with semver
+            final_f = f
+            if (is_yang == 1 && yang_semver == "1" && version != "" && module_name != "") {
+                # modify the output filename to use semver format
+                if (f ~ /@/) {
+                    match(f, ".+@")
+                    final_f = substr(f, RSTART, RLENGTH-1)"#"version".yang"
+                } else {
+                    match(f, "[.]yang")
+                    final_f = substr(f, 1, RSTART-1)"#"version".yang"
+                }
+                # rename the actual file if it was written and names differ
+                if (test != 1 && f != final_f) {
+                    system("mv \"" f "\" \"" final_f "\"")
+                }
+            }
+            print final_f ": " n " lines."
         }
         '
     done
 }
 
-while $GETOPTS Vhnacm:i:d:f: c ; do
+while $GETOPTS Vhnacvm:i:d:f: c ; do
     case $c in
         a)      artwork=1
                 ;;
@@ -576,6 +698,8 @@ while $GETOPTS Vhnacm:i:d:f: c ; do
                 ;;
         V)      do_version
                 exit 0
+                ;;
+        v)      yang_semver=1
                 ;;
         *)      do_usage
                 exit 1
