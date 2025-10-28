@@ -367,7 +367,7 @@ do_strip_txt() {
     (type == 3 || (type == 1 && is_yang == 1)) &&
     first_revision == 0 &&
     /^[ \t]*[a-zA-Z]+:version[ \t]+"?([0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?)/ {
-	match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?")
+        match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?")
         version = substr($0, RSTART, RLENGTH)
         first_revision = 1
     }
@@ -420,7 +420,7 @@ do_strip_txt() {
             type = 0
             version = ""
             first_revision = -1
-	    revision_indent = -1
+            revision_indent = -1
         }
     }
 
