@@ -31,11 +31,14 @@ Tips:
 ## Expected artifacts
 
 After a successful run you should see, per YANG module:
+
 - An extracted file named `module-name#MAJOR.MINOR.PATCH[qualifiers].yang`.
 - Console output confirming the final filename, e.g.:
-  ```
+
+  ```text
   out/ietf-example#1.2.0.yang: 312 lines.
   ```
+
 - If `-v` renamed a file that originally ended in `@2024-03-01.yang`, the old file is transparently replaced with the YANG Semver-based name. You do not need to clean up the date-based filename yourself.
 
 Artifacts for non-YANG snippets (text blocks, SMI modules, generic code) are unchanged.
