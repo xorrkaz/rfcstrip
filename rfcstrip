@@ -366,8 +366,8 @@ do_strip_txt() {
     # find a xxx:version in a YANG module revision
     (type == 3 || (type == 1 && is_yang == 1)) &&
     first_revision == 0 &&
-    /^[ \t]*[a-zA-Z]+:version[ \t]+"?([0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?)/ {
-        match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?")
+    /^[ \t]*[a-zA-Z]+:version[ \t]+"?([0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+)?([+][A-Za-z0-9.-]+)?)/ {
+        match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+)?([+][A-Za-z0-9.-]+)?")
         version = substr($0, RSTART, RLENGTH)
         first_revision = 1
     }
@@ -399,7 +399,7 @@ do_strip_txt() {
                 }
 
                 if (yang_semver == "1" && version != "") {
-                    file = module"#"version".yang"
+                    file = module"@"version".yang"
                 }
 
                 if (dir) {
@@ -580,8 +580,8 @@ EOF
         
         # find a xxx:version in a YANG module revision
         is_yang == 1 && first_revision == 0 &&
-        /^[ \t]*[a-zA-Z]+:version[ \t]+"?([0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?)/ {
-            match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+[.-][0-9]+)?([+][A-Za-z0-9.-]+)?")
+        /^[ \t]*[a-zA-Z]+:version[ \t]+"?([0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+)?([+][A-Za-z0-9.-]+)?)/ {
+            match($0, "[0-9]+[.][0-9]+[.][0-9]+(_(non_)?compatible)?(-[A-Za-z0-9.-]+)?([+][A-Za-z0-9.-]+)?")
             version = substr($0, RSTART, RLENGTH)
             first_revision = 1
         }
@@ -655,10 +655,10 @@ EOF
                 # modify the output filename to use semver format
                 if (f ~ /@/) {
                     match(f, ".+@")
-                    final_f = substr(f, RSTART, RLENGTH-1)"#"version".yang"
+                    final_f = substr(f, RSTART, RLENGTH-1)"@"version".yang"
                 } else {
                     match(f, "[.]yang")
-                    final_f = substr(f, 1, RSTART-1)"#"version".yang"
+                    final_f = substr(f, 1, RSTART-1)"@"version".yang"
                 }
                 # rename the actual file if it was written and names differ
                 if (test != 1 && f != final_f) {
