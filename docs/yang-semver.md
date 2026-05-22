@@ -1,12 +1,12 @@
 # Using YANG Semver Extraction (`-v`)
 
-The `-v` flag makes `rfcstrip` name extracted YANG modules with their [YANG Semver](https://datatracker.ietf.org/doc/html/draft-ietf-netmod-yang-semver) value instead of the traditional `module@YYYY-MM-DD.yang` pattern. This gives you filenames such as `ietf-example#1.2.0.yang`, making it easy to line up generated artifacts with versioned module bundles.
+The `-v` flag makes `rfcstrip` name extracted YANG modules with their [YANG Semver](https://datatracker.ietf.org/doc/html/draft-ietf-netmod-yang-semver) value instead of the traditional `module@YYYY-MM-DD.yang` pattern. This gives you filenames such as `ietf-example@1.2.0.yang`, making it easy to line up generated artifacts with versioned module bundles.
 
 ## What the `-v` option does
 
 - `rfcstrip` inspects the **first** `revision` statement in each YANG module (whether it was found in raw text, a `<CODE BEGINS>` block, or XML `sourcecode`).
 - If that revision contains a `prefix:version` statement (for example `ysv:version "1.2.3"`), the parsed YANG Semver string is remembered.
-- When the module is written to disk, the output file is renamed to `module-name#<semver>.yang`. Modules that already include a revision date in their filename are rewritten so the date segment becomes `#<semver>`.
+- When the module is written to disk, the output file is renamed to `module-name@<semver>.yang`. Modules that already include a revision date in their filename are rewritten so the date segment becomes `@<semver>`.
 - If no YANG Semver value is found, or the extracted artifact is not a YANG module, `rfcstrip` falls back to the normal filename (revision-date based or whatever was declared in `<CODE BEGINS>` / `@name`).
 
 The version parser understands the formats allowed by YANG Semver, including optional `_non_compatible`, prerelease identifiers (e.g., `-rc.1`), and build metadata (e.g., `+build.5`).
@@ -32,11 +32,11 @@ Tips:
 
 After a successful run you should see, per YANG module:
 
-- An extracted file named `module-name#MAJOR.MINOR.PATCH[qualifiers].yang`.
+- An extracted file named `module-name@MAJOR.MINOR.PATCH[qualifiers].yang`.
 - Console output confirming the final filename, e.g.:
 
   ```text
-  out/ietf-example#1.2.0.yang: 312 lines.
+  out/ietf-example@1.2.0.yang: 312 lines.
   ```
 
 - If `-v` renamed a file that originally ended in `@2024-03-01.yang`, the old file is transparently replaced with the YANG Semver-based name. You do not need to clean up the date-based filename yourself.
