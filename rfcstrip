@@ -283,10 +283,10 @@ do_strip_txt() {
             if (yang_semver == "1" && version != "") {
                 if (file ~ /@/) {
                     match(file, ".+@")
-                    file = substr(file, RSTART, RLENGTH-1)"#"version".yang"
+                    file = substr(file, RSTART, RLENGTH-1)"@"version".yang"
                 } else {
                     match(file, "[.]yang")
-                    file = substr(file, 1, RSTART-1)"#"version".yang"
+                    file = substr(file, 1, RSTART-1)"@"version".yang"
                 }
             }
 
